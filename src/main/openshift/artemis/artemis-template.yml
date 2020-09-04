@@ -1,10 +1,8 @@
 parameters:
-  - name: ARTEMIS_USERNAME
-    value: artemis
-  - name: ARTEMIS_PASSWORD
-    description: Password for the database user
-    generate: expression
-    from: "[a-zA-Z0-9]{16}"
+  - name: METADATA_LABELS_APPLICATION
+    value: quarkus-techlab
+  - name: METADATA_LABELS_TEMPLATE
+    value: quarkus-techlab-template
   - name: ARTEMIS_SERVICE_NAME
     description: Name for the openshift service
     value: artemis-activemq
@@ -14,7 +12,7 @@ parameters:
     value: 2.10.1
   - name: ARTEMIS_VOLUME_CLAIM_SIZE
     description: Amount of data for the pvc for artemis
-    value: 5G
+    value: 1Gi
   - name: ARTEMIS_DISABLE_SECURITY
     description: Enables non-tls connections
     value: "true"
@@ -58,32 +56,23 @@ parameters:
     value: 1Gi
   - name: ROUTE_ARTEMIS_HOST
     description: Route for the artemis web ui
-
+    value: artemis-quarkus-techlab.ocp.aws.ch
 
 kind: Template
 apiVersion: v1
 metadata:
-  name: quarkus-techlab-secret-template
-  labels:
-    application: quarkus-techlab
+  name: b4u-application-template
+  annotations:
+    iconClass: icon-java
+    tags: java,microservice,b4u
 objects:
-
-  - apiVersion: v1
-    kind: Secret
-    metadata:
-      labels:
-        application: quarkus-techlab
-      name: artemis-credentials
-    type: Opaque
-    stringData:
-      username: ${ARTEMIS_USERNAME}
-      password: ${ARTEMIS_PASSWORD}
 
   - apiVersion: v1
     kind: ImageStream
     metadata:
       labels:
-        application: quarkus-techlab
+        application: ${METADATA_LABELS_APPLICATION}
+        template: ${METADATA_LABELS_TEMPLATE}
       name: ${ARTEMIS_SERVICE_NAME}
     spec:
       lookupPolicy:
@@ -98,7 +87,8 @@ objects:
     kind: PersistentVolumeClaim
     metadata:
       labels:
-        application: quarkus-techlab
+        application: ${METADATA_LABELS_APPLICATION}
+        template: ${METADATA_LABELS_TEMPLATE}
       name: artemis-data
     spec:
       accessModes:
@@ -111,7 +101,8 @@ objects:
     kind: DeploymentConfig
     metadata:
       labels:
-        application: quarkus-techlab
+        application: ${METADATA_LABELS_APPLICATION}
+        template: ${METADATA_LABELS_TEMPLATE}
       name: ${ARTEMIS_SERVICE_NAME}
     spec:
       replicas: 1
@@ -122,22 +113,16 @@ objects:
       template:
         metadata:
           labels:
-            application: quarkus-techlab
+            application: ${METADATA_LABELS_APPLICATION}
             deploymentConfig: ${ARTEMIS_SERVICE_NAME}
           name: ${ARTEMIS_SERVICE_NAME}
         spec:
           containers:
             - env:
                 - name: ARTEMIS_USERNAME
-                  valueFrom:
-                    secretKeyRef:
-                      name: artemis-credentials
-                      key: username
+                  value: quarkus
                 - name: ARTEMIS_PASSWORD
-                  valueFrom:
-                    secretKeyRef:
-                      name: artemis-credentials
-                      key: password
+                  value: quarkus
                 - name: ANONYMOUS_LOGIN
                   value: ${ARTEMIS_ANONYMOUS_LOGIN}
                 - name: DISABLE_SECURITY
@@ -241,7 +226,8 @@ objects:
         prometheus.io/path: "/"
         prometheus.io/port: ${ARTEMIS_PORT_JMX_EXPORTER}
       labels:
-        application: quarkus-techlab
+        application: ${METADATA_LABELS_APPLICATION}
+        template: ${METADATA_LABELS_TEMPLATE}
         prometheus-monitoring: "true"
         monitoring: ${ARTEMIS_SERVICE_NAME}
       name: ${ARTEMIS_SERVICE_NAME}
@@ -284,7 +270,8 @@ objects:
     kind: Route
     metadata:
       labels:
-        application: quarkus-techlab
+        application: ${METADATA_LABELS_APPLICATION}
+        template: ${METADATA_LABELS_TEMPLATE}
       name: artemis-route
     spec:
       host: ${ROUTE_ARTEMIS_HOST}
@@ -302,7 +289,8 @@ objects:
     kind: ConfigMap
     metadata:
       labels:
-        application: quarkus-techlab
+        application: ${METADATA_LABELS_APPLICATION}
+        template: ${METADATA_LABELS_TEMPLATE}
       name: artemis-config
     data:
       broker-1.xml: |-
@@ -493,18 +481,6 @@ objects:
                         <auto-create-jms-queues>true</auto-create-jms-queues>
                         <auto-create-jms-topics>true</auto-create-jms-topics>
                     </address-setting>
-                    <address-setting match="inbound-data">
-                        <expiry-address>ExpiryQueue</expiry-address>
-                        <redelivery-delay>3000</redelivery-delay>
-                        <redelivery-delay-multiplier>5</redelivery-delay-multiplier>
-                        <max-delivery-attempts>7</max-delivery-attempts>
-                    </address-setting>
-                    <address-setting match="transformed-data">
-                        <expiry-address>ExpiryQueue</expiry-address>
-                        <redelivery-delay>3000</redelivery-delay>
-                        <redelivery-delay-multiplier>5</redelivery-delay-multiplier>
-                        <max-delivery-attempts>7</max-delivery-attempts>
-                    </address-setting>
                 </address-settings>
 
                 <addresses>
@@ -518,14 +494,14 @@ objects:
                             <queue name="ExpiryQueue"/>
                         </anycast>
                     </address>
-                    <address name="inbound-data">
+                    <address name="data-inbound">
                         <anycast>
-                            <queue name="inbound-data"/>
+                            <queue name="data-inbound"/>
                         </anycast>
                     </address>
-                    <address name="transformed-data">
+                    <address name="data-transformed">
                         <anycast>
-                            <queue name="transformed-data"/>
+                            <queue name="data-transformed"/>
                         </anycast>
                     </address>
                 </addresses>

@@ -3,7 +3,8 @@ kind: KafkaTopic
 metadata:
   name: manual
   labels:
-    strimzi.io/cluster: subzero
+    application: quarkus-techlab
+    strimzi.io/cluster: quarkus-techlab
 spec:
   partitions: 1
   replicas: 1
